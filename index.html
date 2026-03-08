@@ -2,240 +2,173 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Women's Day Quiz</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>For You | Women's Day 2026</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #0b0014; font-family: 'Segoe UI', sans-serif; }
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; display: flex; flex-direction: column;
-            justify-content: space-between; align-items: center; padding: 20px;
-            color: white; z-index: 10;
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+        #ui {
+            position: absolute; bottom: 30px; width: 100%; text-align: center;
+            color: white; pointer-events: none; transition: opacity 1s;
         }
-        #top-bar { text-align: center; margin-top: 10px; }
-        #counter { font-size: 1.2rem; color: #ff85a2; font-weight: bold; }
-        
-        #quiz-container {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 25px; border-radius: 20px;
-            border: 2px solid #ff007f;
-            text-align: center; pointer-events: auto;
-            max-width: 90%; width: 320px;
-            box-shadow: 0 0 20px rgba(255, 0, 127, 0.3);
-        }
-        #question { font-size: 1.4rem; margin-bottom: 20px; color: #fff; }
-        .options-grid { display: grid; gap: 10px; }
-        
-        .opt-btn {
-            background: rgba(255, 255, 255, 0.1);
-            color: white; border: 1px solid #ff85a2;
-            padding: 12px; border-radius: 10px;
-            cursor: pointer; font-size: 1rem;
-            transition: all 0.2s;
-        }
-        .opt-btn:hover { background: #ff007f; border-color: #fff; }
-
-        #result-msg { font-size: 1.5rem; font-weight: bold; margin-bottom: 15px; display: none; }
-        #next-btn { 
-            background: #00ff88; color: #000; border: none; 
-            padding: 12px 25px; border-radius: 25px; 
-            font-weight: bold; cursor: pointer; display: none;
-            width: 100%;
-        }
-
+        h1 { font-weight: 200; letter-spacing: 5px; font-size: 18px; margin-bottom: 5px; color: #ffb7c5; }
+        p { font-size: 12px; opacity: 0.6; }
+        #counter { position: absolute; top: 20px; right: 20px; color: white; font-size: 14px; opacity: 0.5; }
         canvas { display: block; }
     </style>
 </head>
 <body>
-
-<div id="ui-layer">
-    <div id="top-bar">
-        <div id="counter">Photo 1 / 10</div>
+    <div id="counter">1 / 10</div>
+    <div id="ui">
+        <h1>HAPPY WOMEN'S DAY</h1>
+        <p>Tap to see our memories drift and reform</p>
     </div>
-    
-    <div id="quiz-container">
-        <div id="question">Guess who this is? ✨</div>
-        <div id="result-msg"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // YOUR 10 LINKS (Using direct i.ibb.co links for CORS compatibility)
+        const IMAGES = [
+            'https://i.ibb.co/tMvdwsXk/1.jpg', 'https://i.ibb.co/1JrFFc6P/2.jpg',
+            'https://i.ibb.co/dJDHkBQj/3.jpg', 'https://i.ibb.co/W49Rz9kD/4.jpg',
+            'https://i.ibb.co/DfbM6zxB/5.jpg', 'https://i.ibb.co/jvF3jNZR/6.jpg',
+            'https://i.ibb.co/RGL0SbZP/7.jpg', 'https://i.ibb.co/tPZqdmnZ/8.jpg',
+            'https://i.ibb.co/d4tny9Q9/9.jpg', 'https://i.ibb.co/RTwxx649/10.jpg'
+        ];
+
+        let scene, camera, renderer, points;
+        let currentImgIndex = 0;
+        const particleCount = 15000;
+        let positions = new Float32Array(particleCount * 3);
+        let colors = new Float32Array(particleCount * 3);
+        let targetPositions = new Float32Array(particleCount * 3);
+        let targetColors = new Float32Array(particleCount * 3);
+        let velocities = new Float32Array(particleCount * 3);
         
-        <div class="options-grid" id="options">
-            </div>
-        
-        <button id="next-btn">Next Photo ➔</button>
-    </div>
-</div>
+        let mouse = new THREE.Vector2(-1000, -1000);
+        const tmpVec = new THREE.Vector3();
 
-<script type="importmap">
-    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-</script>
+        init();
 
-<script type="module">
-    import * as THREE from 'three';
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 400;
 
-    // Image links and their "Correct" names for the quiz
-    const DATA = [
-        { url: 'https://i.ibb.co/tMvdwsXk/1.jpg', name: 'Sister' },
-        { url: 'https://i.ibb.co/1JrFFc6P/2.jpg', name: 'Mother' },
-        { url: 'https://i.ibb.co/dJDHkBQj/3.jpg', name: 'Friend' },
-        { url: 'https://i.ibb.co/W49Rz9kD/4.jpg', name: 'Teacher' },
-        { url: 'https://i.ibb.co/DfbM6zxB/5.jpg', name: 'Grandma' },
-        { url: 'https://i.ibb.co/jvF3jNZR/6.jpg', name: 'Colleague' },
-        { url: 'https://i.ibb.co/RGL0SbZP/7.jpg', name: 'Aunt' },
-        { url: 'https://i.ibb.co/tPZqdmnZ/8.jpg', name: 'Cousin' },
-        { url: 'https://i.ibb.co/d4tny9Q9/9.jpg', name: 'Hero' },
-        { url: 'https://i.ibb.co/RTwxx649/10.jpg', name: 'You' }
-    ];
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
 
-    const NICKNAMES = ['Babde', 'shone', 'shona', 'gubbu'];
-    const PARTICLE_COUNT = 20000;
-    let currentIdx = 0;
+            const geo = new THREE.BufferGeometry();
+            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-    // --- Scene Setup ---
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-    camera.position.z = 240;
+            const mat = new THREE.PointsMaterial({ size: 2, vertexColors: true, transparent: true, opacity: 0.8 });
+            points = new THREE.Points(geo, mat);
+            scene.add(points);
 
-    const geo = new THREE.BufferGeometry();
-    const pos = new Float32Array(PARTICLE_COUNT * 3);
-    const col = new Float32Array(PARTICLE_COUNT * 3);
-    const targetPos = new Float32Array(PARTICLE_COUNT * 3);
-    const targetCol = new Float32Array(PARTICLE_COUNT * 3);
-    const vels = new Float32Array(PARTICLE_COUNT * 3);
+            loadNextImage();
 
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
-    
-    const mat = new THREE.PointsMaterial({ size: 1.5, vertexColors: true, blending: THREE.AdditiveBlending });
-    scene.add(new THREE.Points(geo, mat));
+            window.addEventListener('mousedown', nextImage);
+            window.addEventListener('touchstart', (e) => {
+                nextImage();
+                updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+            });
+            window.addEventListener('mousemove', e => updateMouse(e.clientX, e.clientY));
+            window.addEventListener('touchmove', e => updateMouse(e.touches[0].clientX, e.touches[0].clientY));
+            window.addEventListener('resize', onWindowResize);
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', {willReadFrequently: true});
-    canvas.width = 150; canvas.height = 150;
+            animate();
+        }
 
-    async function loadPhoto(index) {
-        const item = DATA[index];
-        const img = new Image();
-        img.crossOrigin = "Anonymous";
-        img.src = item.url;
-        
-        img.onload = () => {
-            ctx.clearRect(0, 0, 150, 150);
-            ctx.drawImage(img, 0, 0, 150, 150);
-            const pixels = ctx.getImageData(0, 0, 150, 150).data;
+        function updateMouse(x, y) {
+            mouse.x = (x - window.innerWidth / 2);
+            mouse.y = -(y - window.innerHeight / 2);
+        }
 
-            for (let i = 0; i < PARTICLE_COUNT; i++) {
-                const x = Math.floor(Math.random() * 150);
-                const y = Math.floor(Math.random() * 150);
-                const pIdx = (y * 150 + x) * 4;
+        function loadNextImage() {
+            const loader = new THREE.TextureLoader();
+            loader.setCrossOrigin('anonymous');
+            loader.load(IMAGES[currentImgIndex], (texture) => {
+                const img = texture.image;
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 150; canvas.height = 150; // Downsample for performance
+                ctx.drawImage(img, 0, 0, 150, 150);
+                const data = ctx.getImageData(0, 0, 150, 150).data;
 
-                targetPos[i*3] = (x - 75) * 1.8;
-                targetPos[i*3+1] = (75 - y) * 1.8;
-                targetPos[i*3+2] = 0;
+                for (let i = 0; i < particleCount; i++) {
+                    const idx = Math.floor(Math.random() * (150 * 150));
+                    const r = data[idx * 4] / 255;
+                    const g = data[idx * 4 + 1] / 255;
+                    const b = data[idx * 4 + 2] / 255;
 
-                // Color is initially hidden (dark purple)
-                targetCol[i*3] = 0.1; targetCol[i*3+1] = 0.05; targetCol[i*3+2] = 0.1;
+                    targetPositions[i*3] = (idx % 150 - 75) * 3;
+                    targetPositions[i*3+1] = (Math.floor(idx / 150) - 75) * -3;
+                    targetPositions[i*3+2] = 0;
+
+                    targetColors[i*3] = r;
+                    targetColors[i*3+1] = g;
+                    targetColors[i*3+2] = b;
+                }
+                document.getElementById('counter').innerText = `${currentImgIndex + 1} / 10`;
+            });
+        }
+
+        function nextImage() {
+            currentImgIndex = (currentImgIndex + 1) % IMAGES.length;
+            // Add a "burst" effect to velocities
+            for(let i=0; i<particleCount*3; i++) velocities[i] += (Math.random()-0.5)*20;
+            loadNextImage();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const pos = points.geometry.attributes.position.array;
+            const col = points.geometry.attributes.color.array;
+
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
                 
-                // Final color stored to reveal later
-                targetCol[i*3].finalR = (pixels[pIdx]/255) * 1.3;
-                targetCol[i*3].finalG = (pixels[pIdx+1]/255) * 1.3;
-                targetCol[i*3].finalB = (pixels[pIdx+2]/255) * 1.3;
+                // Physics: Follow mouse repulsion
+                tmpVec.set(pos[i3], pos[i3+1], pos[i3+2]);
+                let dist = tmpVec.distanceTo(new THREE.Vector3(mouse.x, mouse.y, 0));
+                if (dist < 60) {
+                    let force = (60 - dist) / 60;
+                    velocities[i3] += (pos[i3] - mouse.x) * force * 0.2;
+                    velocities[i3+1] += (pos[i3+1] - mouse.y) * force * 0.2;
+                }
 
-                vels[i*3] = (Math.random()-0.5)*15;
-                vels[i*3+1] = (Math.random()-0.5)*15;
-                vels[i*3+2] = (Math.random()-0.5)*15;
+                // Spring back to target
+                velocities[i3] += (targetPositions[i3] - pos[i3]) * 0.05;
+                velocities[i3+1] += (targetPositions[i3+1] - pos[i3+1]) * 0.05;
+                velocities[i3+2] += (targetPositions[i3+2] - pos[i3+2]) * 0.05;
+
+                // Friction
+                velocities[i3] *= 0.85;
+                velocities[i3+1] *= 0.85;
+                velocities[i3+2] *= 0.85;
+
+                pos[i3] += velocities[i3];
+                pos[i3+1] += velocities[i3+1];
+                pos[i3+2] += velocities[i3+2];
+
+                // Smooth color transition
+                col[i3] += (targetColors[i3] - col[i3]) * 0.1;
+                col[i3+1] += (targetColors[i3+1] - col[i3+1]) * 0.1;
+                col[i3+2] += (targetColors[i3+2] - col[i3+2]) * 0.1;
             }
-            setupQuiz(index);
-        };
-    }
 
-    function setupQuiz(index) {
-        const optionsDiv = document.getElementById('options');
-        const nextBtn = document.getElementById('next-btn');
-        const resMsg = document.getElementById('result-msg');
-        const question = document.getElementById('question');
-
-        optionsDiv.innerHTML = '';
-        resMsg.style.display = 'none';
-        nextBtn.style.display = 'none';
-        question.style.display = 'block';
-        document.getElementById('counter').innerText = `Photo ${index + 1} / 10`;
-
-        // Create 4 random options (one correct)
-        let choices = [DATA[index].name, "Grace", "Beauty", "Strength"];
-        choices = choices.sort(() => Math.random() - 0.5);
-
-        choices.forEach(choice => {
-            const btn = document.createElement('button');
-            btn.className = 'opt-btn';
-            btn.innerText = choice;
-            btn.onclick = () => checkAnswer(choice, DATA[index].name);
-            optionsDiv.appendChild(btn);
-        });
-    }
-
-    function checkAnswer(selected, correct) {
-        const resMsg = document.getElementById('result-msg');
-        const nick = NICKNAMES[Math.floor(Math.random() * NICKNAMES.length)];
-        
-        if(selected === correct) {
-            resMsg.innerHTML = `Well done, ${nick}! 💖 ✅`;
-            resMsg.style.color = "#00ff88";
-        } else {
-            resMsg.innerHTML = `It's okay ${nick}, it was ${correct}! ✨`;
-            resMsg.style.color = "#ff85a2";
+            points.geometry.attributes.position.needsUpdate = true;
+            points.geometry.attributes.color.needsUpdate = true;
+            renderer.render(scene, camera);
         }
-
-        // Reveal real colors
-        revealColors();
-        
-        resMsg.style.display = 'block';
-        document.getElementById('options').innerHTML = '';
-        document.getElementById('question').style.display = 'none';
-        document.getElementById('next-btn').style.display = 'block';
-    }
-
-    function revealColors() {
-        const colAttr = geo.attributes.color.array;
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-            targetCol[i*3] = targetCol[i*3].finalR;
-            targetCol[i*3+1] = targetCol[i*3].finalG;
-            targetCol[i*3+2] = targetCol[i*3].finalB;
-        }
-    }
-
-    document.getElementById('next-btn').onclick = () => {
-        currentIdx = (currentIdx + 1) % 10;
-        loadPhoto(currentIdx);
-    };
-
-    function animate() {
-        requestAnimationFrame(animate);
-        const p = geo.attributes.position.array;
-        const c = geo.attributes.color.array;
-
-        for (let i = 0; i < PARTICLE_COUNT; i++) {
-            const i3 = i * 3;
-            for(let j=0; j<3; j++) {
-                p[i3+j] += (targetPos[i3+j] - p[i3+j]) * 0.08 + vels[i3+j];
-                c[i3+j] += (targetCol[i3+j] - c[i3+j]) * 0.05;
-                vels[i3+j] *= 0.85;
-            }
-        }
-        geo.attributes.position.needsUpdate = true;
-        geo.attributes.color.needsUpdate = true;
-        renderer.render(scene, camera);
-    }
-
-    loadPhoto(0);
-    animate();
-
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-</script>
+    </script>
 </body>
 </html>
