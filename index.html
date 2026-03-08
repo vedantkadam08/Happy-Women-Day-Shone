@@ -2,173 +2,217 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>For You | Women's Day 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Women's Day Mystery Gallery</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
-        #ui {
-            position: absolute; bottom: 30px; width: 100%; text-align: center;
-            color: white; pointer-events: none; transition: opacity 1s;
+        body { margin: 0; overflow: hidden; background: #0b0014; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: space-between; align-items: center; padding: 40px;
+            color: #ff85a2; z-index: 10;
         }
-        h1 { font-weight: 200; letter-spacing: 5px; font-size: 18px; margin-bottom: 5px; color: #ffb7c5; }
-        p { font-size: 12px; opacity: 0.6; }
-        #counter { position: absolute; top: 20px; right: 20px; color: white; font-size: 14px; opacity: 0.5; }
-        canvas { display: block; }
+        #top-info { text-align: center; }
+        #counter { font-size: 1.2rem; font-weight: bold; text-shadow: 0 0 10px #ff007f; margin-bottom: 5px;}
+        #timer { font-size: 1rem; color: #fff; opacity: 0.8; }
+        
+        #message-box { 
+            background: rgba(255, 20, 147, 0.2); 
+            padding: 20px; border-radius: 15px; 
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center; pointer-events: auto;
+            min-width: 250px;
+        }
+        #message { font-size: 1.8rem; font-weight: 700; margin-bottom: 10px; text-shadow: 0 0 15px #ff007f; }
+        
+        button {
+            background: #ff007f; color: white; border: none; padding: 10px 20px;
+            border-radius: 20px; cursor: pointer; font-weight: bold;
+            transition: transform 0.2s; pointer-events: auto;
+        }
+        button:hover { transform: scale(1.1); }
+        .hidden { display: none !important; }
+
+        canvas { display: block; touch-action: none; }
     </style>
 </head>
 <body>
-    <div id="counter">1 / 10</div>
-    <div id="ui">
-        <h1>HAPPY WOMEN'S DAY</h1>
-        <p>Tap to see our memories drift and reform</p>
+
+<div id="ui-layer">
+    <div id="top-info">
+        <div id="counter">Mystery Photo 1 / 10</div>
+        <div id="timer">Guessing time...</div>
     </div>
+    
+    <div id="message-box">
+        <div id="message">Happy Women's Day! ✨</div>
+        <button id="next-btn">Reveal Next Mystery</button>
+        <button id="guess-btn" class="hidden">I Guessed It! ✅</button>
+    </div>
+</div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
 
-    <script>
-        // YOUR 10 LINKS (Using direct i.ibb.co links for CORS compatibility)
-        const IMAGES = [
-            'https://i.ibb.co/tMvdwsXk/1.jpg', 'https://i.ibb.co/1JrFFc6P/2.jpg',
-            'https://i.ibb.co/dJDHkBQj/3.jpg', 'https://i.ibb.co/W49Rz9kD/4.jpg',
-            'https://i.ibb.co/DfbM6zxB/5.jpg', 'https://i.ibb.co/jvF3jNZR/6.jpg',
-            'https://i.ibb.co/RGL0SbZP/7.jpg', 'https://i.ibb.co/tPZqdmnZ/8.jpg',
-            'https://i.ibb.co/d4tny9Q9/9.jpg', 'https://i.ibb.co/RTwxx649/10.jpg'
-        ];
+<script type="module">
+    import * as THREE from 'three';
 
-        let scene, camera, renderer, points;
-        let currentImgIndex = 0;
-        const particleCount = 15000;
-        let positions = new Float32Array(particleCount * 3);
-        let colors = new Float32Array(particleCount * 3);
-        let targetPositions = new Float32Array(particleCount * 3);
-        let targetColors = new Float32Array(particleCount * 3);
-        let velocities = new Float32Array(particleCount * 3);
+    const IMAGE_URLS = [
+        'https://i.ibb.co/tMvdwsXk/1.jpg', 'https://i.ibb.co/1JrFFc6P/2.jpg',
+        'https://i.ibb.co/dJDHkBQj/3.jpg', 'https://i.ibb.co/W49Rz9kD/4.jpg',
+        'https://i.ibb.co/DfbM6zxB/5.jpg', 'https://i.ibb.co/jvF3jNZR/6.jpg',
+        'https://i.ibb.co/RGL0SbZP/7.jpg', 'https://i.ibb.co/tPZqdmnZ/8.jpg',
+        'https://i.ibb.co/d4tny9Q9/9.jpg', 'https://i.ibb.co/RTwxx649/10.jpg'
+    ];
+
+    const NICKNAMES = ['Babde', 'shone', 'shona', 'gubbu'];
+    const PARTICLE_COUNT = 20000;
+    let currentIndex = -1;
+    let isRevealed = false;
+    
+    // --- Three.js Setup ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    camera.position.z = 250;
+
+    const posArray = new Float32Array(PARTICLE_COUNT * 3);
+    const colArray = new Float32Array(PARTICLE_COUNT * 3);
+    const targetPos = new Float32Array(PARTICLE_COUNT * 3);
+    const targetCol = new Float32Array(PARTICLE_COUNT * 3);
+    const vels = new Float32Array(PARTICLE_COUNT * 3);
+
+    for(let i=0; i<PARTICLE_COUNT*3; i++) posArray[i] = (Math.random()-0.5)*800;
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colArray, 3));
+
+    const mat = new THREE.PointsMaterial({ size: 1.8, vertexColors: true, blending: THREE.AdditiveBlending, transparent: true, opacity: 0.8 });
+    const points = new THREE.Points(geo, mat);
+    scene.add(points);
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', {willReadFrequently: true});
+    canvas.width = 150; canvas.height = 150;
+
+    // --- Game Logic ---
+    async function startTransition() {
+        currentIndex = (currentIndex + 1) % 10;
+        isRevealed = false;
         
-        let mouse = new THREE.Vector2(-1000, -1000);
-        const tmpVec = new THREE.Vector3();
+        document.getElementById('next-btn').classList.add('hidden');
+        document.getElementById('guess-btn').classList.add('hidden');
+        document.getElementById('timer').innerText = "Guessing in progress...";
+        document.getElementById('message').innerText = "Who is this? 🤔";
+        document.getElementById('counter').innerText = `Mystery Photo ${currentIndex + 1} / 10`;
 
-        init();
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.src = IMAGE_URLS[currentIndex];
+        
+        img.onload = () => {
+            ctx.clearRect(0, 0, 150, 150);
+            ctx.drawImage(img, 0, 0, 150, 150);
+            const pixels = ctx.getImageData(0, 0, 150, 150).data;
 
-        function init() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-            camera.position.z = 400;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const x = Math.floor(Math.random() * 150);
+                const y = Math.floor(Math.random() * 150);
+                const pIdx = (y * 150 + x) * 4;
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            document.body.appendChild(renderer.domElement);
+                targetPos[i*3] = (x - 75) * 1.8;
+                targetPos[i*3+1] = (75 - y) * 1.8;
+                targetPos[i*3+2] = (Math.random() - 0.5) * 15;
 
-            const geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-            geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                // Set initial target to "Mystery White"
+                targetCol[i*3] = 0.3; targetCol[i*3+1] = 0.2; targetCol[i*3+2] = 0.3;
 
-            const mat = new THREE.PointsMaterial({ size: 2, vertexColors: true, transparent: true, opacity: 0.8 });
-            points = new THREE.Points(geo, mat);
-            scene.add(points);
-
-            loadNextImage();
-
-            window.addEventListener('mousedown', nextImage);
-            window.addEventListener('touchstart', (e) => {
-                nextImage();
-                updateMouse(e.touches[0].clientX, e.touches[0].clientY);
-            });
-            window.addEventListener('mousemove', e => updateMouse(e.clientX, e.clientY));
-            window.addEventListener('touchmove', e => updateMouse(e.touches[0].clientX, e.touches[0].clientY));
-            window.addEventListener('resize', onWindowResize);
-
-            animate();
-        }
-
-        function updateMouse(x, y) {
-            mouse.x = (x - window.innerWidth / 2);
-            mouse.y = -(y - window.innerHeight / 2);
-        }
-
-        function loadNextImage() {
-            const loader = new THREE.TextureLoader();
-            loader.setCrossOrigin('anonymous');
-            loader.load(IMAGES[currentImgIndex], (texture) => {
-                const img = texture.image;
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = 150; canvas.height = 150; // Downsample for performance
-                ctx.drawImage(img, 0, 0, 150, 150);
-                const data = ctx.getImageData(0, 0, 150, 150).data;
-
-                for (let i = 0; i < particleCount; i++) {
-                    const idx = Math.floor(Math.random() * (150 * 150));
-                    const r = data[idx * 4] / 255;
-                    const g = data[idx * 4 + 1] / 255;
-                    const b = data[idx * 4 + 2] / 255;
-
-                    targetPositions[i*3] = (idx % 150 - 75) * 3;
-                    targetPositions[i*3+1] = (Math.floor(idx / 150) - 75) * -3;
-                    targetPositions[i*3+2] = 0;
-
-                    targetColors[i*3] = r;
-                    targetColors[i*3+1] = g;
-                    targetColors[i*3+2] = b;
-                }
-                document.getElementById('counter').innerText = `${currentImgIndex + 1} / 10`;
-            });
-        }
-
-        function nextImage() {
-            currentImgIndex = (currentImgIndex + 1) % IMAGES.length;
-            // Add a "burst" effect to velocities
-            for(let i=0; i<particleCount*3; i++) velocities[i] += (Math.random()-0.5)*20;
-            loadNextImage();
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const pos = points.geometry.attributes.position.array;
-            const col = points.geometry.attributes.color.array;
-
-            for (let i = 0; i < particleCount; i++) {
-                const i3 = i * 3;
-                
-                // Physics: Follow mouse repulsion
-                tmpVec.set(pos[i3], pos[i3+1], pos[i3+2]);
-                let dist = tmpVec.distanceTo(new THREE.Vector3(mouse.x, mouse.y, 0));
-                if (dist < 60) {
-                    let force = (60 - dist) / 60;
-                    velocities[i3] += (pos[i3] - mouse.x) * force * 0.2;
-                    velocities[i3+1] += (pos[i3+1] - mouse.y) * force * 0.2;
-                }
-
-                // Spring back to target
-                velocities[i3] += (targetPositions[i3] - pos[i3]) * 0.05;
-                velocities[i3+1] += (targetPositions[i3+1] - pos[i3+1]) * 0.05;
-                velocities[i3+2] += (targetPositions[i3+2] - pos[i3+2]) * 0.05;
-
-                // Friction
-                velocities[i3] *= 0.85;
-                velocities[i3+1] *= 0.85;
-                velocities[i3+2] *= 0.85;
-
-                pos[i3] += velocities[i3];
-                pos[i3+1] += velocities[i3+1];
-                pos[i3+2] += velocities[i3+2];
-
-                // Smooth color transition
-                col[i3] += (targetColors[i3] - col[i3]) * 0.1;
-                col[i3+1] += (targetColors[i3+1] - col[i3+1]) * 0.1;
-                col[i3+2] += (targetColors[i3+2] - col[i3+2]) * 0.1;
+                // Burst
+                vels[i*3] = (Math.random()-0.5)*20;
+                vels[i*3+1] = (Math.random()-0.5)*20;
+                vels[i*3+2] = (Math.random()-0.5)*20;
             }
 
-            points.geometry.attributes.position.needsUpdate = true;
-            points.geometry.attributes.color.needsUpdate = true;
-            renderer.render(scene, camera);
+            // After 3.5 seconds, reveal the true colors
+            setTimeout(() => {
+                isRevealed = true;
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    const x = Math.round((targetPos[i*3]/1.8) + 75);
+                    const y = Math.round(75 - (targetPos[i*3+1]/1.8));
+                    const pIdx = (y * 150 + x) * 4;
+                    
+                    targetCol[i*3] = (pixels[pIdx]/255) * 1.3;
+                    targetCol[i*3+1] = (pixels[pIdx+1]/255) * 1.3;
+                    targetCol[i*3+2] = (pixels[pIdx+2]/255) * 1.3;
+                }
+                document.getElementById('timer').innerText = "Revealed!";
+                document.getElementById('guess-btn').classList.remove('hidden');
+            }, 3500);
+        };
+    }
+
+    function handleGuess() {
+        const nick = NICKNAMES[Math.floor(Math.random() * NICKNAMES.length)];
+        document.getElementById('message').innerText = `Well done, ${nick}! 💖✨`;
+        document.getElementById('guess-btn').classList.add('hidden');
+        document.getElementById('next-btn').classList.remove('hidden');
+        document.getElementById('next-btn').innerText = "Next Photo";
+    }
+
+    // --- Interaction ---
+    const mouse = new THREE.Vector2(-1000, -1000);
+    const handleMove = (e) => {
+        const x = e.touches ? e.touches[0].clientX : e.clientX;
+        const y = e.touches ? e.touches[0].clientY : e.clientY;
+        mouse.x = (x / window.innerWidth) * 2 - 1;
+        mouse.y = -(y / window.innerHeight) * 2 + 1;
+    };
+
+    document.getElementById('next-btn').onclick = startTransition;
+    document.getElementById('guess-btn').onclick = handleGuess;
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('touchmove', handleMove);
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const p = geo.attributes.position.array;
+        const c = geo.attributes.color.array;
+        const mouseV = new THREE.Vector3(mouse.x * 120, mouse.y * 120, 0);
+
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            const i3 = i * 3;
+            for(let j=0; j<3; j++) {
+                p[i3+j] += (targetPos[i3+j] - p[i3+j]) * 0.07 + vels[i3+j];
+                c[i3+j] += (targetCol[i3+j] - c[i3+j]) * 0.05;
+                vels[i3+j] *= 0.88;
+            }
+            const dx = p[i3] - mouseV.x;
+            const dy = p[i3+1] - mouseV.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist < 40) {
+                const force = (40 - dist) * 0.03;
+                p[i3] += dx * force;
+                p[i3+1] += dy * force;
+            }
         }
-    </script>
+        geo.attributes.position.needsUpdate = true;
+        geo.attributes.color.needsUpdate = true;
+        renderer.render(scene, camera);
+    }
+
+    startTransition();
+    animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+</script>
 </body>
 </html>
